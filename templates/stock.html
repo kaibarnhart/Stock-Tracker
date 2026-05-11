@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="stock-page">
+  <div class="stock-top-row">
+    <div>
+      <p class="stock-symbol">{{ stock.symbol }}</p>
+      <h1 class="stock-name">{{ stock.name }}</h1>
+
+      <div class="price-row">
+        <span class="big-price">
+          {% if stock.price is not none %}
+            {{ "%.2f"|format(stock.price) }}
+          {% else %}
+            -
+          {% endif %}
+        </span>
+        <span class="currency">{{ stock.currency }}</span>
+      </div>
+
+      <div class="change-row {% if stock.change_percent is not none and stock.change_percent < 0 %}negative{% else %}positive{% endif %}">
+        {% if stock.price_change is not none and stock.change_percent is not none %}
+          {{ "%+.2f"|format(stock.price_change) }} ({{ "%+.2f"|format(stock.change_percent) }}%)
+        {% else %}
+          Change unavailable
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="stock-actions">
+      <a href="{{ url_for('add_to_watchlist', ticker=stock.symbol) }}" class="follow-btn">+ Follow</a>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <div class="range-buttons">
+      <button type="button" class="range-btn" data-range="1D">1D</button>
+      <button type="button" class="range-btn" data-range="5D">5D</button>
+      <button type="button" class="range-btn active" data-range="1M">1M</button>
+      <button type="button" class="range-btn" data-range="6M">6M</button>
+      <button type="button" class="range-btn" data-range="YTD">YTD</button>
+      <button type="button" class="range-btn" data-range="1Y">1Y</button>
+      <button type="button" class="range-btn" data-range="5Y">5Y</button>
+      <button type="button" class="range-btn" data-range="MAX">Max</button>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="stockChart"></canvas>
+    </div>
+  </div>
+
+  <section class="stats-grid">
+    <div class="stat-item">
+      <span class="stat-label">Open</span>
+      <span class="stat-value">
+        {% if stock.open is not none %}{{ "%.2f"|format(stock.open) }}{% else %}-{% endif %}
+      </span>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-label">Day High</span>
+      <span class="stat-value">
+        {% if stock.day_high is not none %}{{ "%.2f"|format(stock.day_high) }}{% else %}-{% endif %}
+      </span>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-label">Day Low</span>
+      <span class="stat-value">
+        {% if stock.day_low is not none %}{{ "%.2f"|format(stock.day_low) }}{% else %}-{% endif %}
+      </span>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-label">Mkt cap</span>
+      <span class="stat-value">{{ stock.market_cap }}</span>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-label">P/E ratio</span>
+      <span class="stat-value">
+        {% if stock.trailing_pe is not none %}{{ "%.2f"|format(stock.trailing_pe) }}{% else %}-{% endif %}
+      </span>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-label">52-wk high</span>
+      <span class="stat-value">
+        {% if stock.fifty_two_week_high is not none %}{{ "%.2f"|format(stock.fifty_two_week_high) }}{% else %}-{% endif %}
+      </span>
+    </div>
+
+    <div class="stat-item">
+      <span class="stat-label">52-wk low</span>
+      <span class="stat-value">
+        {% if stock.fifty_two_week_low is not none %}{{ "%.2f"|format(stock.fifty_two_week_low) }}{% else %}-{% endif %}
+      </span>
+    </div>
+  </section>
+</section>
+
+{{ chart_labels|tojson|safe }}
+{{ chart_prices|tojson|safe }}
+{{ stock.symbol|tojson|safe }}
+
+<script>
+  const startingLabels = {{ chart_labels|tojson|safe }};
+  const startingPrices = {{ chart_prices|tojson|safe }};
+  const ticker = {{ stock.symbol|tojson|safe }};
+
+  const ctx = document.getElementById("stockChart").getContext("2d");
+
+  function chartBorderColor(prices) {
+    if (!prices || prices.length < 2) return "#7aa2ff";
+    return prices[prices.length - 1] >= prices[0] ? "#7dd3a7" : "#ff8d8d";
+  }
+
+  function chartBackgroundColor(prices) {
+    if (!prices || prices.length < 2) return "rgba(122, 162, 255, 0.15)";
+    return prices[prices.length - 1] >= prices[0]
+      ? "rgba(125, 211, 167, 0.15)"
+      : "rgba(255, 141, 141, 0.15)";
+  }
+
+  const stockChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: startingLabels,
+      datasets: [
+        {
+          data: startingPrices,
+          borderColor: chartBorderColor(startingPrices),
+          backgroundColor: chartBackgroundColor(startingPrices),
+          fill: true,
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: 0.25
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: "index"
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              return "$" + context.parsed.y;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: "#9ca3af",
+            maxTicksLimit: 8
+          },
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          ticks: {
+            color: "#9ca3af"
+          },
+          grid: {
+            color: "rgba(255,255,255,0.08)"
+          }
+        }
+      }
+    }
+  });
+
+  async function loadRange(rangeKey) {
+    try {
+      const response = await fetch(`/api/history/${ticker}?range=${rangeKey}`);
+      const data = await response.json();
+
+      stockChart.data.labels = data.labels || [];
+      stockChart.data.datasets[0].data = data.prices || [];
+      stockChart.data.datasets[0].borderColor = chartBorderColor(data.prices || []);
+      stockChart.data.datasets[0].backgroundColor = chartBackgroundColor(data.prices || []);
+      stockChart.update();
+    } catch (error) {
+      console.error("Error loading chart data:", error);
+    }
+  }
+
+  document.querySelectorAll(".range-btn").forEach((btn) => {
+    btn.addEventListener("click", async function () {
+      document.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("active"));
+      this.classList.add("active");
+      await loadRange(this.dataset.range);
+    });
+  });
+</script>
+{% endblock %}

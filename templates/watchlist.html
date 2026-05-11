@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+  <div class="watchlist-header">
+    <h2>Your Watchlist</h2>
+    <p class="muted">Click any ticker to open its chart page.</p>
+  </div>
+
+  {% if stocks %}
+    <table class="watchlist-table">
+      <thead>
+        <tr>
+          <th>Ticker</th>
+          <th>Price</th>
+          <th>Today %</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in stocks %}
+          <tr>
+            <td>
+              <a class="ticker-link" href="{{ url_for('stock_page', ticker=s.ticker) }}">
+                {{ s.ticker }}
+              </a>
+            </td>
+
+            <td>
+              {% if s.price is not none %}
+                ${{ "%.2f"|format(s.price) }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
+            <td>
+              {% if s.change_percent is not none %}
+                <span class="chip {% if s.change_percent >= 0 %}chip-green{% else %}chip-red{% endif %}">
+                  {{ "%+.2f"|format(s.change_percent) }}%
+                </span>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
+            <td>{{ s.date_added[:10] }}</td>
+
+            <td>
+              <form
+                method="POST"
+                action="{{ url_for('delete_from_watchlist', watch_id=s.id) }}"
+                onsubmit="return confirm('Remove {{ s.ticker }} from watchlist?');"
+              >
+                <button type="submit" class="btn-icon" title="Delete">🗑️</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-text">You have no stocks in your watchlist yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

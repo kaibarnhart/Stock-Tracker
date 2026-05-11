@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero-card">
+  <p class="eyebrow">Track stocks simply</p>
+  <h1 class="hero-title">Search any stock ticker</h1>
+  <p class="hero-subtitle">
+    View price, daily movement, key stats, interactive chart ranges, and save stocks to your watchlist.
+  </p>
+
+  <form method="POST" class="search-form hero-search">
+    <input
+      type="text"
+      name="ticker"
+      placeholder="AAPL, TSLA, MSFT..."
+      required
+      autocomplete="off"
+    />
+    <button type="submit">Search</button>
+  </form>
+</section>
+{% endblock %}
